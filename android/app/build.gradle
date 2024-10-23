@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.untitled9"
+    namespace = "com.lati.LATI"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -21,7 +21,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.untitled9"
+        applicationId = "com.lati.LATI"
         minSdk = 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

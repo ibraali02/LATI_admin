@@ -7,15 +7,13 @@ class PostsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Posts'),
-        backgroundColor: Colors.white, // لون خلفية العنوان أبيض
-        foregroundColor: const Color(0xFF980E0E), // لون النص في الـ AppBar
-      ),
+
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: ListView(
           children: [
+            _continueLearningSection(), // إضافة كارد "استمر في التعلم" فوق البوستات
+            const SizedBox(height: 16), // مساحة بين الكارد والبوسات
             _buildWorkshopCard(
               context, // تمرير context هنا
               title: 'Workshop on Flutter Development',
@@ -103,12 +101,55 @@ class PostsPage extends StatelessWidget {
                 );
               },
               style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white, backgroundColor: const Color(0xFF980E0E), // لون نص الزر
+                foregroundColor: Colors.white,
+                backgroundColor: const Color(0xFF980E0E), // لون نص الزر
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10), // زوايا دائرية للزر
                 ),
               ),
               child: const Text('Register Now'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _continueLearningSection() {
+    return Card(
+      elevation: 4,
+      margin: const EdgeInsets.all(8.0), // إضافة margin إلى الكارد
+      child: Padding(
+        padding: const EdgeInsets.all(8.0), // تقليل padding داخل الكارد
+        child: Row(
+          children: [
+            Image.asset('images/im1.png', height: 60, width: 60, fit: BoxFit.cover), // تقليل حجم الصورة
+            const SizedBox(width: 8), // تقليل المسافة بين الصورة والنص
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('APP', style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 4), // تقليل المسافة بين النصوص
+                  const Text(
+                    'Bootcamp of Mobile App From Scratch',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // تقليل حجم الخط
+                  ),
+                  const SizedBox(height: 8), // تقليل المسافة
+                  LinearProgressIndicator(
+                    minHeight: 8, // تقليل ارتفاع شريط التقدم
+                    borderRadius: BorderRadius.circular(5),
+                    value: 0.75,
+                    backgroundColor: Colors.grey,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC02626)),
+                  ),
+                  const SizedBox(height: 4), // تقليل المسافة
+                  const Text(
+                    '23 of 33 Lessons • 75% completed',
+                    style: TextStyle(color: Colors.grey, fontSize: 12), // تقليل حجم الخط
+                  ),
+                ],
+              ),
             ),
           ],
         ),

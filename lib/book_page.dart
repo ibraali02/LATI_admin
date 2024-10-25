@@ -17,8 +17,8 @@ class BookPage extends StatefulWidget {
 
 class _BookPageState extends State<BookPage> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  String _currentPage = 'Messages'; // الصفحة الافتراضية
-  Widget _currentContent = const MessagesPage(); // محتوى الصفحة الحالي
+  String _currentPage = 'Home'; // تعيين الصفحة الافتراضية إلى Home
+  Widget _currentContent = const PostsPage(); // تعيين المحتوى الافتراضي إلى PostsPage
 
   @override
   void initState() {
@@ -40,8 +40,8 @@ class _BookPageState extends State<BookPage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(MediaQuery.of(context).size.height * 0.25),
-        child: _customAppBar(context),
+        preferredSize: Size.fromHeight(80.0), // تعيين ارتفاع AppBar
+        child: _customAppBar(context), // استخدام AppBar المخصص
       ),
       body: _currentContent, // عرض محتوى الصفحة الحالية
     );
@@ -49,7 +49,6 @@ class _BookPageState extends State<BookPage> with SingleTickerProviderStateMixin
 
   Widget _customAppBar(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.40,
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -60,31 +59,23 @@ class _BookPageState extends State<BookPage> with SingleTickerProviderStateMixin
           end: Alignment.bottomCenter, // وينتهي في الأسفل
         ),
       ),
-      child: Column(
-        children: [
-          AppBar(
-            backgroundColor: Colors.transparent, // يجعل AppBar شفافاً لعرض التدرج اللوني
-            elevation: 0,
-            title: Text(
-              'My Courses',
-              style: GoogleFonts.poppins( // استخدام خط Poppins
-                color: Colors.orange, // تعيين اللون إلى برتقالي جميل
-                fontWeight: FontWeight.bold, // تعيين وزن الخط إلى عريض
-              ),
-            ),
-            actions: [
-              _buildIconButton(Icons.message, 'Messages', const MessagesPage()),
-              _buildIconButton(Icons.star, 'Rate', const RatePage()),
-              _buildIconButton(Icons.post_add, 'Posts', const PostsPage()),
-              _buildIconButton(Icons.online_prediction, 'Online', const OnlinePage()),
-              _buildIconButton(Icons.video_call, 'Video', const VideoPage()),
-              _buildImageButton(), // زر AI بصورة
-            ],
+      child: AppBar(
+        backgroundColor: Colors.transparent, // يجعل AppBar شفافاً لعرض التدرج اللوني
+        title: Text(
+          'My Courses',
+          style: GoogleFonts.poppins( // استخدام خط Poppins
+            color: Colors.orange, // تعيين اللون إلى برتقالي جميل
+            fontWeight: FontWeight.bold, // تعيين وزن الخط إلى عريض
+            fontSize:15, // تصغير حجم الخط هنا
           ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0), // تقليل padding
-            child: _continueLearningSection(), // إضافة قسم "استمر في التعلم" داخل الـ AppBar
-          ),
+        ),
+        actions: [
+          _buildIconButton(Icons.home, 'Home', const PostsPage()),
+          _buildIconButton(Icons.message, 'Messages', const MessagesPage()),
+          _buildIconButton(Icons.star, 'Rate', const RatePage()),
+          _buildIconButton(Icons.online_prediction, 'Online', const OnlinePage()),
+          _buildIconButton(Icons.video_call, 'Video', const VideoPage()),
+          _buildImageButton(), // زر AI بصورة
         ],
       ),
     );

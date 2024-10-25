@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:timeago/timeago.dart' as timeago;
+import 'package:google_fonts/google_fonts.dart'; // إضافة المكتبة هنا
 import 'course_detail_page.dart'; // تأكد من استيراد صفحة التفاصيل هنا
 
 class ExplorePage extends StatefulWidget {
@@ -12,40 +13,70 @@ class ExplorePage extends StatefulWidget {
 
 class _ExplorePageState extends State<ExplorePage> {
   String? selectedCategory;
+  String? selectedSortOption;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Explore Courses', style: TextStyle(color: Colors.white)),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Color(0xFF980E0E),
-                Color(0xFF330000),
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            expandedHeight: 50,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF980E0E),
+                      Color(0xFF330000),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(30),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    const SizedBox(height: 10),
+                    Text(
+                      'Explore Courses',
+                      style: GoogleFonts.lato(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+          ),
+          SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _filterButtonsWithImages(),
+                const SizedBox(height: 16),
+                _sortDropdown(),
+                const SizedBox(height: 16),
+                _coursesList(),
               ],
-              begin: Alignment.topLeft,
-              end: Alignment.topRight,
             ),
           ),
-        ),
-      ),
-      body: Container(
-        color: Colors.white,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(25.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _filterButtonsWithImages(),
-              const SizedBox(height: 16),
-              _sortDropdown(),
-              const SizedBox(height: 16),
-              _coursesList(),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -80,20 +111,24 @@ class _ExplorePageState extends State<ExplorePage> {
       },
       child: Container(
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.red),
-          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: isSelected ? Colors.red : Colors.grey),
+          borderRadius: BorderRadius.circular(12),
           color: isSelected ? Colors.red[100] : Colors.white,
         ),
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        margin: const EdgeInsets.only(right: 8),
         child: Row(
           children: [
-            Text(title, style: const TextStyle(color: Colors.black)),
-            const SizedBox(width: 8),
+            Text(
+              title,
+              style: GoogleFonts.lato(color: Colors.black, fontSize: 14),
+            ),
+            const SizedBox(width: 4),
             icon is IconData
-                ? Icon(icon, size: 40)
+                ? Icon(icon, size: 24)
                 : SizedBox(
-              width: 40,
-              height: 40,
+              width: 24,
+              height: 24,
               child: ClipOval(
                 child: Image.asset(
                   icon,
@@ -108,23 +143,41 @@ class _ExplorePageState extends State<ExplorePage> {
   }
 
   Widget _sortDropdown() {
-    return DropdownButton<String>(
-      isExpanded: true,
-      hint: const Text('Sort by'),
-      items: <String>[
-        'Popular',
-        'Newest',
-        'Price: Low to High',
-        'Price: High to Low'
-      ].map<DropdownMenuItem<String>>((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
-        );
-      }).toList(),
-      onChanged: (String? newValue) {
-        // إضافة منطق الفرز هنا
-      },
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: DropdownButton<String>(
+        isExpanded: true,
+        hint: Text('Sort by', style: GoogleFonts.lato(color: Colors.black54)),
+        value: selectedSortOption,
+        items: <String>[
+          'Duration: Shortest First',
+          'Duration: Longest First',
+          'Popular',
+          'Newest'
+        ].map<DropdownMenuItem<String>>((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(value, style: GoogleFonts.lato()),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          setState(() {
+            selectedSortOption = newValue;
+          });
+        },
+        underline: const SizedBox(),
+      ),
     );
   }
 
@@ -147,8 +200,20 @@ class _ExplorePageState extends State<ExplorePage> {
           return doc['category'] == selectedCategory;
         }).toList();
 
-        return Column(
-          children: filteredCourses.map((doc) {
+        if (selectedSortOption == 'Duration: Shortest First') {
+          filteredCourses.sort((a, b) => a['duration'].compareTo(b['duration']));
+        } else if (selectedSortOption == 'Duration: Longest First') {
+          filteredCourses.sort((a, b) => b['duration'].compareTo(a['duration']));
+        } else if (selectedSortOption == 'Newest') {
+          filteredCourses.sort((a, b) => b['publishedDate'].compareTo(a['publishedDate']));
+        }
+
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: filteredCourses.length,
+          itemBuilder: (context, index) {
+            final doc = filteredCourses[index];
             final course = doc.data() as Map<String, dynamic>;
 
             final title = course['title'] ?? 'No Title';
@@ -162,7 +227,6 @@ class _ExplorePageState extends State<ExplorePage> {
 
             return GestureDetector(
               onTap: () {
-                // الانتقال إلى صفحة تفاصيل الكورس
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => CourseDetailPage(
@@ -187,122 +251,124 @@ class _ExplorePageState extends State<ExplorePage> {
                 timeAgo,
               ),
             );
-          }).toList(),
+          },
         );
       },
     );
   }
 
   Widget _courseCard(String title, String description, String duration, String imageUrl, String location, String category, String publishedDate) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      elevation: 6,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15),
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            spreadRadius: 2,
+            blurRadius: 5,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // صورة الكورس
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: Image.network(
-                imageUrl,
-                width: 100,
-                height: 100,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) =>
-                const Icon(Icons.broken_image, size: 100, color: Colors.grey),
-              ),
+      child: Column(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
+              imageUrl,
+              height: 250,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.broken_image, size: 100, color: Colors.grey),
             ),
-            const SizedBox(width: 16),
-
-            // تفاصيل الكورس
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF330000),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.lato(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: GoogleFonts.lato(
+                    fontSize: 14,
+                    color: Colors.black54,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.location_pin, size: 16, color: Colors.red),
+                    const SizedBox(width: 4),
+                    Text(
+                      location,
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: Colors.black87,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.black54,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_today, size: 16, color: Colors.blue),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Duration: $duration',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: Colors.black87,
+                      ),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_pin, size: 16, color: Colors.red),
-                      const SizedBox(width: 4),
-                      Text(
-                        location,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.category, size: 16, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text(
+                      category,
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: Colors.black87,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today, size: 16, color: Colors.blue),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Duration: $duration',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.schedule, size: 16, color: Colors.orange),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Published: $publishedDate',
+                      style: GoogleFonts.lato(
+                        fontSize: 12,
+                        color: Colors.black87,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.category, size: 16, color: Colors.green),
-                      const SizedBox(width: 4),
-                      Text(
-                        category,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule, size: 16, color: Colors.orange),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Published: $publishedDate',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.black87,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

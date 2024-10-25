@@ -50,16 +50,28 @@ class _HomePageState extends State<HomePage> {
       body: Stack(
         children: [
           _customAppBar(context),
-          Padding(
-            padding: const EdgeInsets.only(top: 200.0),
-            child: _posts.isEmpty
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-              itemCount: _posts.length,
-              itemBuilder: (context, index) {
-                return _postCard(_posts[index]);
-              },
-            ),
+          DraggableScrollableSheet(
+            initialChildSize: 0.75,
+            minChildSize: 0.5,
+            maxChildSize: 1.0,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: _posts.length,
+                    itemBuilder: (context, index) {
+                      return _postCard(_posts[index]);
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -67,7 +79,8 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _customAppBar(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       height: MediaQuery.of(context).size.height * 0.38,
       decoration: const BoxDecoration(
         gradient: LinearGradient(

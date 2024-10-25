@@ -65,14 +65,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: ClipOval(
           child: FloatingActionButton(
-            backgroundColor: _selectedIndex == 4 || _isButtonPressed ? Colors.red[900] : Colors.white70,
+            backgroundColor: _selectedIndex == 4 || _isButtonPressed ? Colors.orange : Colors.red[900],
             elevation: 0,
             child: Image.asset(
               'images/book.png',
               fit: BoxFit.cover,
               width: 50,
               height: 50,
-              color: _selectedIndex == 4 || _isButtonPressed ? Colors.white : Colors.red[900],
+              color: _selectedIndex == 4 || _isButtonPressed ? Colors.white : Colors.white,
             ),
             onPressed: () {
               _onFloatingButtonPressed();
@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: Colors.white,
           boxShadow: [
             BoxShadow(
@@ -104,11 +104,11 @@ class _HomeScreenState extends State<HomeScreen> {
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: <Widget>[
-              _buildAnimatedIcon(0, Icons.home),
-              _buildAnimatedIcon(1, Icons.search),
+              _buildAnimatedIcon(0, Icons.article), // أيقونة آخر الأخبار
+              _buildAnimatedIcon(1, Icons.manage_search_sharp), // تغيير أيقونة البحث إلى أيقونة الكورسات
               const SizedBox(width: 48),
-              _buildAnimatedIcon(2, Icons.work),
-              _buildAnimatedIcon(3, Icons.group), // تغيير أيقونة الملف الشخصي
+              _buildAnimatedIcon(2, Icons.work), // أيقونة الوظائف
+              _buildAnimatedIcon(3, Icons.group), // أيقونة الباحثين عن العمل
             ],
           ),
         ),
@@ -147,7 +147,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: IconButton(
         icon: Icon(
           icon,
-          color: isSelected ? Colors.red[800] : Colors.grey,
+          color: isSelected ? Colors.orange : Colors.red[900], // استخدام البرتقالي عند التحديد
           size: isSelected ? 36 : 28,
         ),
         onPressed: () {

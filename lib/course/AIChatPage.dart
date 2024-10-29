@@ -1,84 +1,114 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 class AIChatPage extends StatefulWidget {
-  const AIChatPage({super.key});
+  final String apiKey;
+
+  const AIChatPage({super.key, required this.apiKey});
 
   @override
   _AIChatPageState createState() => _AIChatPageState();
 }
 
 class _AIChatPageState extends State<AIChatPage> {
-  final List<Map<String, String>> _messages = [];
-  final List<String> _courseOptions = [
-    'ماجستير في الأمن السيبراني',
-    'دبلوم في تطوير البرمجيات',
-    'دورة في تحليل البيانات',
-    'دورة في تعلم الآلة',
-    'دورة في الشبكات'
+  String _response = '';
+  final List<String> _skills = [
+    'Mobile App Development',
+    'Web Development',
+    'Python',
+    'Java',
+    'Artificial Intelligence',
+    'Game Development',
+    'C++',
+    'JavaScript',
+    'Data Analysis',
+    'UI/UX Design',
+    'Database Management',
+    'R Programming',
+    'PHP',
+    'HTML & CSS',
+    'Object-Oriented Programming',
+    'Go',
+    'Web Development with React',
+    'Web Development with Angular',
+    'Cloud Applications',
+    'DevOps',
+    'Cybersecurity',
+    'Swift',
+    'Kotlin',
+    'Ruby',
+    'Dart',
+    'Agile Software Development',
+    'Big Data',
   ];
 
-  String? _selectedCourse;
-  String? _aspiration;
+  final List<String> _futureGoals = [
+    'App Developer',
+    'Web Developer',
+    'Data Scientist',
+    'AI Engineer',
+    'Cybersecurity Expert',
+    'Game Developer',
+    'Software Engineer',
+    'Technical Consultant',
+    'Project Manager',
+    'UI Developer',
+    'Systems Analyst',
+    'Database Developer',
+    'Cloud Engineer',
+    'Open Source Software Developer',
+    'IT Manager',
+    'Desktop Application Developer',
+    'Machine Learning Developer',
+    'Business Solutions Developer',
+    'API Developer',
+    'Network Engineer',
+    'Data Analytics Consultant',
+    'Technology Product Manager',
+    'Data Analyst',
+    'AI Research Scientist',
+    'IT Operations Manager',
+    'Technical Business Development Manager',
+    'IT Consultant',
+    'Digital Marketing Solutions Developer',
+    'Augmented Reality App Developer',
+    'Virtual Reality App Developer',
+    'Secure Software Developer',
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchInitialMessages();
-  }
+  List<bool> _selectedSkills = List.filled(30, false);
+  String? _selectedGoal;
+  String _selectedLanguage = 'English';
 
-  Future<void> _fetchInitialMessages() async {
-    final initialMessages = await _getAIResponse("ما الكورسات التي يجب أن أدرسها؟");
-    setState(() {
-      _messages.addAll(initialMessages);
-    });
-  }
+  Future<void> _generateRoadmap() async {
+    if (widget.apiKey.isEmpty) {
+      setState(() {
+        _response = 'API Key is not set.';
+      });
+      return;
+    }
 
-  Future<List<Map<String, String>>> _getAIResponse(String prompt) async {
-    final url = Uri.parse('https://api.aimlapi.com/v1/chat/completions');
+    List<String> selectedSkills = [];
+    for (int i = 0; i < _skills.length; i++) {
+      if (_selectedSkills[i]) {
+        selectedSkills.add(_skills[i]);
+      }
+    }
+
+    final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: widget.apiKey);
+    final content = [
+      Content.text('I want to learn ${selectedSkills.isNotEmpty ? selectedSkills.join(", ") : "a skill"} to become ${_selectedGoal ?? "a professional in my field"}.')
+    ];
 
     try {
-      final response = await http.post(
-        url,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer b0fe2018498847459625e1c33e31c730',
-        },
-        body: jsonEncode({
-          'model': 'gpt-3.5-turbo',
-          'messages': [
-            {'role': 'system', 'content': 'You are a helpful assistant.'},
-            {'role': 'user', 'content': prompt}
-          ],
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return List<Map<String, String>>.from(
-          data['choices'].map((choice) {
-            return {
-              'role': 'ai',
-              'content': choice['message']['content'],
-            };
-          }),
-        );
-      } else {
-        throw Exception('فشل في تحميل استجابة الذكاء الاصطناعي');
-      }
+      final response = await model.generateContent(content);
+      setState(() {
+        _response = response.text!;
+      });
     } catch (e) {
-      return [{'role': 'error', 'content': "خطأ: ${e.toString()}"}];
-    }
-  }
-
-  void _sendUserChoice() {
-    if (_selectedCourse != null && _aspiration != null) {
-      final prompt = "لقد درست $_selectedCourse وأنا أطمح أن أكون $_aspiration. ما الكورسات التي يجب أن أدرسها لتحقيق حلمي؟";
-      _getAIResponse(prompt).then((newMessages) {
-        setState(() {
-          _messages.addAll(newMessages);
-        });
+      setState(() {
+        _response = 'Error: ${e.toString()}';
       });
     }
   }
@@ -86,174 +116,136 @@ class _AIChatPageState extends State<AIChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Chat', style: TextStyle(color: Colors.white)),
-        centerTitle: true,
-        backgroundColor: Colors.redAccent, // خلفية حمراء للـ AppBar
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(80.0),
+        child: Container(
+          color: Colors.white, // خلفية بيضاء
+          child: AppBar(
+            title: Text(
+              'AI Roadmap Generator',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFFB00020), // لون الخط أحمر غامق
+              ),
+            ),
+            centerTitle: true,
+            backgroundColor: Colors.white, // خلفية بيضاء
+            elevation: 0, // إزالة ظل
+          ),
+        ),
       ),
-      body: Container(
-        color: Colors.white, // خلفية بيضاء
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Chat with AI',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            Text(
+              'Select Your Skills:',
+              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            GridView.builder(
+              physics: const NeverScrollableScrollPhysics(),
+              shrinkWrap: true,
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 3,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+              ),
+              itemCount: _skills.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedSkills[index] = !_selectedSkills[index];
+                    });
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: _selectedSkills[index] ? Color(0xFFB00020) : Colors.white, // أحمر غامق عند التحديد
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Color(0xFFB00020)), // حدود أحمر غامق
+                    ),
+                    child: Center(
+                      child: Text(
+                        _skills[index],
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: _selectedSkills[index] ? Colors.white : Colors.black,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 20),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  return _buildMessageBubble(
-                    _messages[index]['content']!,
-                    _messages[index]['role'] == 'user',
-                  );
-                },
+            Text(
+              'What Do You Want to Become?',
+              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            DropdownButton<String>(
+              value: _selectedGoal,
+              hint: const Text('Select Your Goal'),
+              isExpanded: true,
+              items: _futureGoals.map((goal) {
+                return DropdownMenuItem<String>(
+                  value: goal,
+                  child: Text(goal),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                setState(() {
+                  _selectedGoal = newValue;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Select Response Language:',
+              style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            RadioListTile<String>(
+              title: Text('English', style: GoogleFonts.poppins()),
+              value: 'English',
+              groupValue: _selectedLanguage,
+              onChanged: (value) {
+                setState(() {
+                  _selectedLanguage = value!;
+                });
+              },
+            ),
+            RadioListTile<String>(
+              title: Text('Arabic', style: GoogleFonts.poppins()),
+              value: 'Arabic',
+              groupValue: _selectedLanguage,
+              onChanged: (value) {
+                setState(() {
+                  _selectedLanguage = value!;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _generateRoadmap,
+              style: ElevatedButton.styleFrom(backgroundColor: Color(0xFFB00020)), // زر أحمر غامق
+              child: Text(
+                'Generate Roadmap',
+                style: GoogleFonts.poppins(color: Colors.white),
               ),
             ),
             const SizedBox(height: 20),
-            Text('اختر الكورس الذي درسته:', style: TextStyle(fontSize: 18)),
-            _buildDropdown(),
-            const SizedBox(height: 20),
-            Text('ما هو حلمك؟', style: TextStyle(fontSize: 18)),
-            _buildTextField(),
-            const SizedBox(height: 20),
-            ShaderButton(
-              onPressed: _sendUserChoice,
-              child: const Text('إرسال', style: TextStyle(fontSize: 18)),
+            Text(
+              'Response:',
+              style: GoogleFonts.poppins(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              _response,
+              style: GoogleFonts.poppins(fontSize: 14, color: Colors.black54),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildDropdown() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3), // تغير موقع الظل
-          ),
-        ],
-      ),
-      child: DropdownButton<String>(
-        hint: const Text('اختر كورس'),
-        value: _selectedCourse,
-        isExpanded: true,
-        underline: SizedBox(), // لإخفاء الخط السفلي
-        onChanged: (String? newValue) {
-          setState(() {
-            _selectedCourse = newValue;
-          });
-        },
-        items: _courseOptions.map((String course) {
-          return DropdownMenuItem<String>(
-            value: course,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12.0),
-              child: Text(course, style: const TextStyle(fontSize: 16)),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildTextField() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3), // تغير موقع الظل
-          ),
-        ],
-      ),
-      child: TextField(
-        decoration: InputDecoration(
-          border: InputBorder.none, // لإخفاء الحدود
-          hintText: 'اكتب حلمك هنا',
-          contentPadding: const EdgeInsets.all(16), // مساحة داخلية
-        ),
-        onChanged: (value) {
-          _aspiration = value;
-        },
-      ),
-    );
-  }
-
-  Widget _buildMessageBubble(String message, bool isUserMessage) {
-    return Align(
-      alignment: isUserMessage ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [
-              Color(0xFF980E0E), // اللون الأحمر الداكن
-              Color(0xFFFF5A5A), // اللون الأحمر الفاتح
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              spreadRadius: 2,
-              blurRadius: 5,
-              offset: const Offset(0, 3), // تغير موقع الظل
-            ),
-          ],
-        ),
-        child: Text(
-          message,
-          style: TextStyle(color: isUserMessage ? Colors.white : Colors.black),
-        ),
-      ),
-    );
-  }
-}
-
-class ShaderButton extends StatelessWidget {
-  final VoidCallback onPressed;
-  final Widget child;
-
-  const ShaderButton({required this.onPressed, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF980E0E), // اللون الأحمر الداكن
-            Color(0xFFFF5A5A), // اللون الأحمر الفاتح
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: TextButton(
-        onPressed: onPressed,
-        style: TextButton.styleFrom(
-          foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24), // لون خط الزر
-        ),
-        child: child,
       ),
     );
   }

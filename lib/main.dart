@@ -1,15 +1,21 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:untitled9/home_page.dart';
-import 'package:untitled9/home_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'home_page.dart';
 import 'login_screen.dart';
+import 'user_settings.dart';
+import 'splash_screen.dart'; // استيراد شاشة البداية
 
-Future main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-
-   await Firebase.initializeApp();
-  runApp(const MyApp());
+  await Firebase.initializeApp();
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => UserSettings(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -17,12 +23,12 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final userSettings = Provider.of<UserSettings>(context);
     return MaterialApp(
       title: 'Flutter App',
-      theme: ThemeData(
-        primarySwatch: Colors.red,
-      ),
-      home:  const  HomeScreen(), // Default page is the login screen
+      theme: userSettings.isDarkMode ? ThemeData.dark() : ThemeData.light(),
+      home: const SplashScreen(), // استخدام شاشة البداية
+      debugShowCheckedModeBanner: false,
     );
   }
 }

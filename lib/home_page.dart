@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'settings_page.dart'; // استيراد صفحة الإعدادات
+import 'package:provider/provider.dart';
+import 'user_settings.dart'; // استيراد UserSettings
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -46,10 +48,12 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final userSettings = Provider.of<UserSettings>(context);
+
     return Scaffold(
       body: Stack(
         children: [
-          _customAppBar(context),
+          _customAppBar(context, userSettings.isDarkMode),
           DraggableScrollableSheet(
             initialChildSize: 0.75,
             minChildSize: 0.5,
@@ -57,7 +61,7 @@ class _HomePageState extends State<HomePage> {
             builder: (context, scrollController) {
               return Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: userSettings.isDarkMode ? Colors.grey[850] : Colors.white,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: Padding(
@@ -66,7 +70,7 @@ class _HomePageState extends State<HomePage> {
                     controller: scrollController,
                     itemCount: _posts.length,
                     itemBuilder: (context, index) {
-                      return _postCard(_posts[index]);
+                      return _postCard(_posts[index], userSettings.isDarkMode);
                     },
                   ),
                 ),
@@ -78,16 +82,15 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _customAppBar(BuildContext context) {
+  Widget _customAppBar(BuildContext context, bool isDarkMode) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       height: MediaQuery.of(context).size.height * 0.38,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(0xFF980E0E),
-            Color(0xFF330000),
-          ],
+          colors: isDarkMode
+              ? [Colors.black, Colors.grey[850]!]
+              : [Color(0xFF980E0E), Color(0xFF330000)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -103,7 +106,7 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   'Welcome, $_userName 👋',
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 Row(
                   children: [
@@ -137,7 +140,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _postCard(DocumentSnapshot post) {
+  Widget _postCard(DocumentSnapshot post, bool isDarkMode) {
     Map<String, dynamic> data = post.data() as Map<String, dynamic>;
     bool isLiked = false; // Track if the post is liked
 
@@ -146,6 +149,7 @@ class _HomePageState extends State<HomePage> {
         return Card(
           elevation: 4,
           margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+          color: isDarkMode ? Colors.grey[800] : Colors.white,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
@@ -168,7 +172,7 @@ class _HomePageState extends State<HomePage> {
                   fit: BoxFit.cover,
                 ),
                 const SizedBox(height: 10),
-                Text(data['content'] ?? 'No Content'),
+                Text(data['content'] ?? 'No Content', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
                 const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,

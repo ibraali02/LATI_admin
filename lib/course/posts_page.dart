@@ -1,113 +1,205 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart'; // استيراد خطوط Google
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
 
-class PostsPage extends StatelessWidget {
+class PostsPage extends StatefulWidget {
   const PostsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  _PostsPageState createState() => _PostsPageState();
+}
 
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ListView(
-          children: [
-            _continueLearningSection(), // إضافة كارد "استمر في التعلم" فوق البوستات
-            const SizedBox(height: 16), // مساحة بين الكارد والبوسات
-            _buildWorkshopCard(
-              context, // تمرير context هنا
-              title: 'Workshop on Flutter Development',
-              date: 'October 25, 2024',
-              time: '3:00 PM - 5:00 PM',
-              description: 'Join us for an exciting workshop on Flutter development where you will learn to build beautiful apps.',
-            ),
-            const SizedBox(height: 16),
-            _buildWorkshopCard(
-              context, // تمرير context هنا
-              title: 'UI/UX Design Principles',
-              date: 'November 1, 2024',
-              time: '10:00 AM - 1:00 PM',
-              description: 'Explore the fundamentals of UI/UX design and how to create user-friendly interfaces.',
-            ),
-            const SizedBox(height: 16),
-            _buildWorkshopCard(
-              context, // تمرير context هنا
-              title: 'Backend Development with Node.js',
-              date: 'November 8, 2024',
-              time: '2:00 PM - 4:00 PM',
-              description: 'Learn how to create scalable backend services using Node.js and Express.',
-            ),
-          ],
-        ),
-      ),
-    );
+class _PostsPageState extends State<PostsPage> {
+  String? title;
+  String? description;
+  String? duration;
+  String? location;
+  String? category;
+  String? imageUrl;
+  DateTime? publishedDate;
+  DateTime? startDate;
+  bool isStarted = false;
+  bool isLoading = true;
+  List<dynamic> contentList = []; // To hold content data
+  List<dynamic> externalContents = []; // To hold external content data
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserTokenAndCourseData();
   }
 
-  Widget _buildWorkshopCard(
-      BuildContext context, { // إضافة BuildContext كمعامل
-        required String title,
-        required String date,
-        required String time,
-        required String description,
-      }) {
+  Future<void> _fetchUserTokenAndCourseData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userToken = prefs.getString('token');
+
+    if (userToken != null) {
+      await _fetchCourseForUser(userToken);
+    } else {
+      setState(() {
+        isLoading = false; // Stop loading if token is null
+      });
+    }
+  }
+
+  Future<void> _fetchCourseForUser(String userToken) async {
+    try {
+      QuerySnapshot coursesSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .where('isStarted', isEqualTo: true)
+          .get();
+
+      for (var courseDoc in coursesSnapshot.docs) {
+        var courseData = courseDoc.data() as Map<String, dynamic>;
+
+        QuerySnapshot acceptedStudentsSnapshot = await FirebaseFirestore.instance
+            .collection('courses')
+            .doc(courseDoc.id)
+            .collection('accepted_students')
+            .where('userToken', isEqualTo: userToken)
+            .get();
+
+        if (acceptedStudentsSnapshot.docs.isNotEmpty) {
+          setState(() {
+            title = courseData['title'] ?? "Course Title";
+            description = courseData['description'] ?? "No Description";
+            duration = courseData['duration'] ?? "Duration Not Available";
+            location = courseData['location'] ?? "Location Not Available";
+            category = courseData['category'] ?? "No Category";
+            imageUrl = courseData['imageUrl'] ?? "";
+            publishedDate = courseData['publishedDate'] != null
+                ? (courseData['publishedDate'] as Timestamp).toDate()
+                : null;
+            startDate = courseData['startTime'] != null
+                ? (courseData['startTime'] as Timestamp).toDate()
+                : null;
+            isStarted = courseData['isStarted'] ?? false;
+            isLoading = false; // Stop loading after finding the course
+          });
+
+          // Fetch content for this course
+          await _fetchContentForCourse(courseDoc.id);
+          // Fetch external contents for this course
+          await _fetchExternalContents(courseDoc.id);
+          return; // Exit after finding the first matching course
+        }
+      }
+
+      // If no course found, stop loading
+      setState(() {
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching course for user: $e");
+      setState(() {
+        isLoading = false; // Stop loading on error
+      });
+    }
+  }
+
+  Future<void> _fetchContentForCourse(String courseId) async {
+    try {
+      QuerySnapshot contentSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(courseId)
+          .collection('contents')
+          .get();
+
+      setState(() {
+        contentList = contentSnapshot.docs.map((doc) => doc.data()).toList();
+      });
+    } catch (e) {
+      print("Error fetching content for course: $e");
+    }
+  }
+
+  Future<void> _fetchExternalContents(String courseId) async {
+    try {
+      QuerySnapshot externalContentSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .doc(courseId)
+          .collection('external_contents')
+          .get();
+
+      setState(() {
+        externalContents = externalContentSnapshot.docs.map((doc) => doc.data()).toList();
+      });
+    } catch (e) {
+      print("Error fetching external contents for course: $e");
+    }
+  }
+
+  Widget _continueLearningSection(BuildContext context) {
+    if (publishedDate == null || startDate == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final durationParts = duration?.split(' ');
+    final durationValue = durationParts?.first;
+    final totalDurationMonths = durationValue != null ? int.parse(durationValue) : 0;
+
+    final totalDurationDays = totalDurationMonths * 30; // Approx. 30 days in a month
+    final totalDuration = Duration(days: totalDurationDays);
+    final difference = now.difference(startDate!);
+    final completedPercentage = (difference.inDays / totalDuration.inDays).clamp(0, 1);
+
     return Card(
-      elevation: 6,
-      margin: const EdgeInsets.symmetric(vertical: 8.0),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(15.0), // زوايا دائرية للكارد
-      ),
+      elevation: 4,
+      margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: const Color(0xFF980E0E), // لون النص
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.calendar_today, color: Colors.grey, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  date,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(width: 16),
-                const Icon(Icons.access_time, color: Colors.grey, size: 16),
-                const SizedBox(width: 4),
-                Text(
-                  time,
-                  style: const TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
+            imageUrl != null && imageUrl!.isNotEmpty
+                ? Image.network(imageUrl!, height: 120, width: double.infinity, fit: BoxFit.cover)
+                : const SizedBox(height: 120, width: double.infinity),
             const SizedBox(height: 8),
             Text(
-              description,
-              style: const TextStyle(fontSize: 14),
+              title ?? "Course Title",
+              style: TextStyle(fontSize: 18 * MediaQuery.textScaleFactorOf(context), fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: () {
-                // وظيفة عند الضغط على الزر
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Registered for the workshop!')),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: const Color(0xFF980E0E), // لون نص الزر
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10), // زوايا دائرية للزر
-                ),
-              ),
-              child: const Text('Register Now'),
+            const SizedBox(height: 4),
+            Text(
+              description ?? "No Description",
+              style: TextStyle(fontSize: 16 * MediaQuery.textScaleFactorOf(context), color: Colors.grey),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Category: $category",
+              style: TextStyle(fontSize: 16 * MediaQuery.textScaleFactorOf(context)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Duration: $duration",
+              style: TextStyle(fontSize: 16 * MediaQuery.textScaleFactorOf(context)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Location: $location",
+              style: TextStyle(fontSize: 16 * MediaQuery.textScaleFactorOf(context)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Published on: ${publishedDate != null ? DateFormat.yMMMd().format(publishedDate!) : 'N/A'}",
+              style: TextStyle(fontSize: 16 * MediaQuery.textScaleFactorOf(context)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Starts on: ${DateFormat.yMMMd().format(startDate!)}",
+              style: TextStyle(fontSize: 16 * MediaQuery.textScaleFactorOf(context)),
+            ),
+            const SizedBox(height: 8),
+            LinearProgressIndicator(
+              minHeight: 8,
+              value: completedPercentage.toDouble(),
+              backgroundColor: Colors.grey.shade300,
+              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC02626)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${(completedPercentage * 100).toStringAsFixed(0)}% Complete',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
         ),
@@ -115,43 +207,91 @@ class PostsPage extends StatelessWidget {
     );
   }
 
-  Widget _continueLearningSection() {
+  Widget _externalContentSection(BuildContext context) {
+    if (externalContents.isEmpty) return const SizedBox.shrink();
+
     return Card(
       elevation: 4,
-      margin: const EdgeInsets.all(8.0), // إضافة margin إلى الكارد
+      margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
       child: Padding(
-        padding: const EdgeInsets.all(8.0), // تقليل padding داخل الكارد
-        child: Row(
+        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset('images/im1.png', height: 60, width: 60, fit: BoxFit.cover), // تقليل حجم الصورة
-            const SizedBox(width: 8), // تقليل المسافة بين الصورة والنص
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('APP', style: TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 4), // تقليل المسافة بين النصوص
-                  const Text(
-                    'Bootcamp of Mobile App From Scratch',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // تقليل حجم الخط
-                  ),
-                  const SizedBox(height: 8), // تقليل المسافة
-                  LinearProgressIndicator(
-                    minHeight: 8, // تقليل ارتفاع شريط التقدم
-                    borderRadius: BorderRadius.circular(5),
-                    value: 0.75,
-                    backgroundColor: Colors.grey,
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFC02626)),
-                  ),
-                  const SizedBox(height: 4), // تقليل المسافة
-                  const Text(
-                    '23 of 33 Lessons • 75% completed',
-                    style: TextStyle(color: Colors.grey, fontSize: 12), // تقليل حجم الخط
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 8),
+            ...externalContents.map((content) {
+              return ListTile(
+                title: Text(content['title'] ?? "External Content Title"),
+                subtitle: Text(content['description'] ?? "No Description"),
+              );
+            }).toList(),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _contentSection(BuildContext context) {
+    if (contentList.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      elevation: 4,
+      margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
+      child: Padding(
+        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              const SizedBox(height: 8),
+              ...contentList.map((content) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ListTile(
+                      title: Text(content['title'] ?? "Content Title"),
+                      subtitle: Text(content['description'] ?? "No Description"),
+                    ),
+                    Text("Type: ${content['type'] ?? 'N/A'}"),
+                    Text("Start Time: ${content['startTime'] != null ? DateFormat.jm().format((content['startTime'] as Timestamp).toDate()) : 'N/A'}"),
+                    Text("End Time: ${content['endTime'] != null ? DateFormat.jm().format((content['endTime'] as Timestamp).toDate()) : 'N/A'}"),
+                    const SizedBox(height: 8), // Spacing between items
+                  ],
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Scaffold(
+
+      body: SingleChildScrollView( // إضافة SingleChildScrollView هنا
+        child: Padding(
+          padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
+          child: Column(
+            children: [
+              _continueLearningSection(context),
+              const SizedBox(height: 16),
+              const Text(
+                "External Course Contents",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ), // Title for external contents
+              const SizedBox(height: 8),
+              _externalContentSection(context), // Show the external content section below the title
+              const SizedBox(height: 16),
+              _contentSection(context), // Show the content section below the external content
+            ],
+          ),
         ),
       ),
     );

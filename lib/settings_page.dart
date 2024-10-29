@@ -1,29 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'user_settings.dart';
 import 'login_screen.dart';
-import 'profile_page.dart'; // تأكد من استيراد صفحة البروفايل
+import 'profile_page.dart';
 
-class SettingsPage extends StatefulWidget {
+class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  @override
-  _SettingsPageState createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
-  bool _isArabic = false; // حالة اللغة
-  bool _isDarkMode = false; // حالة الوضع الداكن
-
   Future<void> _logout(BuildContext context) async {
-    // تسجيل الخروج من Firebase
     await FirebaseAuth.instance.signOut();
-
-    // حذف التوكن من SharedPreferences
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token'); // افترض أن التوكن محفوظ تحت هذا المفتاح
+    await prefs.remove('token');
 
-    // الانتقال إلى صفحة تسجيل الدخول
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -32,144 +22,132 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      theme: _isDarkMode ? ThemeData.dark() : ThemeData.light(),
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text(
-            _isArabic ? 'الإعدادات' : 'Settings',
-            style: const TextStyle(color: Colors.white), // لون العنوان أبيض
-          ),
-          backgroundColor: const Color(0xffb71111c),
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white), // زر الرجوع باللون الأبيض
-            onPressed: () {
-              Navigator.pop(context); // العودة إلى الصفحة السابقة
-            },
-          ),
+    final userSettings = Provider.of<UserSettings>(context);
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          userSettings.isDarkMode ? 'الإعدادات' : 'Settings',
+          style: const TextStyle(color: Colors.white),
         ),
-        body: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _isArabic ? 'الإعدادات' : 'Settings',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 20),
-              // زر البروفايل مع الأيقونة
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const ProfilePage()), // الانتقال إلى صفحة البروفايل
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: const Color(0xffb71111c), // لون الزر
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.person, color: Colors.white), // أيقونة البروفايل
-                      const SizedBox(width: 10),
-                      Text(_isArabic ? 'عرض البروفايل' : 'View Profile'),
-                    ],
+        backgroundColor: const Color(0xffb71111c),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              userSettings.isDarkMode ? 'الإعدادات' : 'Settings',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfilePage()),
+                  );
+                },
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xffb71111c),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-              ),
-              const SizedBox(height: 20),
-              Card(
-                elevation: 2,
-                child: Column(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.language, color: Color(0xffb71111c)),
-                      title: Text(_isArabic ? 'تغيير اللغة' : 'Change Language'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('العربية'),
-                          Checkbox(
-                            value: _isArabic,
-                            onChanged: (bool? value) {
-                              setState(() {
-                                _isArabic = value ?? false;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.dark_mode, color: Color(0xffb71111c)),
-                      title: Text(_isArabic ? 'الوضع الداكن' : 'Dark Mode'),
-                      trailing: Switch(
-                        value: _isDarkMode,
-                        onChanged: (bool value) {
-                          setState(() {
-                            _isDarkMode = value;
-                          });
-                        },
-                      ),
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.notifications, color: Color(0xffb71111c)),
-                      title: Text(_isArabic ? 'الإشعارات' : 'Notifications'),
-                      trailing: const Icon(Icons.arrow_forward),
-                      onTap: () {
-                        // Implement notifications settings functionality
-                      },
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.privacy_tip, color: Color(0xffb71111c)),
-                      title: Text(_isArabic ? 'سياسة الخصوصية' : 'Privacy Policy'),
-                      trailing: const Icon(Icons.arrow_forward),
-                      onTap: () {
-                        // Implement privacy policy functionality
-                      },
-                    ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.info, color: Color(0xffb71111c)),
-                      title: Text(_isArabic ? 'حول' : 'About'),
-                      trailing: const Icon(Icons.arrow_forward),
-                      onTap: () {
-                        // Implement about functionality
-                      },
-                    ),
+                    const Icon(Icons.person, color: Colors.white),
+                    const SizedBox(width: 10),
+                    Text(userSettings.isDarkMode ? 'عرض البروفايل' : 'View Profile'),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () => _logout(context), // استدعاء دالة تسجيل الخروج
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: const Color(0xffb71111c), // لون الزر
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+            ),
+            const SizedBox(height: 20),
+            Card(
+              elevation: 2,
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.language, color: Color(0xffb71111c)),
+                    title: Text(userSettings.isDarkMode ? 'تغيير اللغة' : 'Change Language'),
+                    trailing: DropdownButton<String>(
+                      value: userSettings.locale.languageCode,
+                      items: const [
+                        DropdownMenuItem(value: 'en', child: Text('English')),
+                        DropdownMenuItem(value: 'ar', child: Text('العربية')),
+                      ],
+                      onChanged: (String? newValue) {
+                        if (newValue != null) {
+                          userSettings.changeLanguage(newValue);
+                          // لا حاجة لإعادة بناء الصفحة هنا، لأن MaterialApp ستقوم بذلك تلقائيًا
+                        }
+                      },
                     ),
                   ),
-                  child: Text(_isArabic ? 'تسجيل الخروج' : 'Logout'),
-                ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.dark_mode, color: Color(0xffb71111c)),
+                    title: Text(userSettings.isDarkMode ? 'الوضع الداكن' : 'Dark Mode'),
+                    trailing: Switch(
+                      value: userSettings.isDarkMode,
+                      onChanged: (bool value) {
+                        userSettings.toggleDarkMode(value);
+                      },
+                    ),
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.notifications, color: Color(0xffb71111c)),
+                    title: Text(userSettings.isDarkMode ? 'الإشعارات' : 'Notifications'),
+                    trailing: const Icon(Icons.arrow_forward),
+                    onTap: () {},
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip, color: Color(0xffb71111c)),
+                    title: Text(userSettings.isDarkMode ? 'سياسة الخصوصية' : 'Privacy Policy'),
+                    trailing: const Icon(Icons.arrow_forward),
+                    onTap: () {},
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.info, color: Color(0xffb71111c)),
+                    title: Text(userSettings.isDarkMode ? 'حول' : 'About'),
+                    trailing: const Icon(Icons.arrow_forward),
+                    onTap: () {},
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => _logout(context),
+                style: ElevatedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xffb71111c),
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: Text(userSettings.isDarkMode ? 'تسجيل الخروج' : 'Logout'),
+              ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'JobDetailPage.dart';
+import 'package:provider/provider.dart';
+import 'user_settings.dart'; // استيراد UserSettings
 
 class JobsPage extends StatefulWidget {
   const JobsPage({super.key});
@@ -42,6 +44,8 @@ class _JobsPageState extends State<JobsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final userSettings = Provider.of<UserSettings>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -88,7 +92,7 @@ class _JobsPageState extends State<JobsPage> {
         ),
       ),
       body: Container(
-        color: Colors.white,
+        color: userSettings.isDarkMode ? Colors.grey[850] : Colors.white,
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -231,6 +235,7 @@ class _JobsPageState extends State<JobsPage> {
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
         elevation: 4,
+        color: Provider.of<UserSettings>(context).isDarkMode ? Colors.grey[800] : Colors.white,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(

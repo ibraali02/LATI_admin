@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'home_page.dart';
 import 'home_screen.dart';
 import 'login_screen.dart';
 
@@ -41,14 +40,20 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(), // مؤشر تحميل
-            const SizedBox(height: 20),
-            const Text('جاري التحقق من الحالة...'), // رسالة الانتظار
-          ],
+      body: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF330000), // خلفية حمراء داكنة
+        ),
+        child: Center(
+          child: FadeInImage(
+            placeholder: AssetImage('images/lati.png'), // صورة التحميل (يمكنك حذفها إذا لم تكن بحاجة إليها)
+            image: AssetImage('images/lati.png'), // الصورة الرئيسية
+            fit: BoxFit.cover,
+            fadeInDuration: const Duration(milliseconds: 500),
+            fadeOutDuration: const Duration(milliseconds: 500),
+            fadeOutCurve: Curves.easeOut,
+            fadeInCurve: Curves.easeIn,
+          ),
         ),
       ),
     );

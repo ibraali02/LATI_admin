@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'JobDetailPage.dart';
 import 'package:provider/provider.dart';
-import 'user_settings.dart'; // استيراد UserSettings
+import 'package:untitled9/user_settings.dart';
+import 'JobDetailPage.dart';
 
 class JobsPage extends StatefulWidget {
   const JobsPage({super.key});
@@ -16,7 +16,7 @@ class _JobsPageState extends State<JobsPage> {
   double minSalary = 0;
   double maxSalary = 7000;
   List<Map<String, dynamic>> jobs = [];
-  bool sortByLatest = false; // متغير لحفظ حالة الترتيب
+  bool sortByLatest = false;
 
   @override
   void initState() {
@@ -35,7 +35,6 @@ class _JobsPageState extends State<JobsPage> {
 
     setState(() {
       jobs = fetchedJobs;
-      // فرز الوظائف حسب تاريخ النشر إذا كانت الحالة هي الأحدث
       if (sortByLatest) {
         jobs.sort((a, b) => b['publishedDate'].compareTo(a['publishedDate']));
       }
@@ -44,18 +43,19 @@ class _JobsPageState extends State<JobsPage> {
 
   @override
   Widget build(BuildContext context) {
+    // الحصول على إعدادات المستخدم من Provider
     final userSettings = Provider.of<UserSettings>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Job Listings',
-          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+        title: Text(
+          userSettings.currentLanguage == 'en' ? 'Job Listings' : 'قائمة الوظائف',
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
-        automaticallyImplyLeading: false, // إزالة زر الرجوع
+        automaticallyImplyLeading: false,
         actions: [
           PopupMenuButton<String>(
-            icon: const Icon(Icons.sort, color: Colors.white),
+            icon: const Icon(Icons.sort),
             onSelected: (value) {
               setState(() {
                 sortByLatest = value == 'latest';
@@ -79,12 +79,11 @@ class _JobsPageState extends State<JobsPage> {
           ),
         ],
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [
-                Color(0xFF980E0E),
-                Color(0xFF330000),
-              ],
+              colors: userSettings.isDarkMode
+                  ? [Colors.black, Colors.grey[800]!]
+                  : [Color(0xFF980E0E), Color(0xFF330000)],
               begin: Alignment.topLeft,
               end: Alignment.topRight,
             ),
@@ -100,9 +99,9 @@ class _JobsPageState extends State<JobsPage> {
             children: [
               _buildCategories(),
               const SizedBox(height: 20),
-              _buildSalaryRangeSlider(),
+              _buildSalaryRangeSlider(userSettings),
               const SizedBox(height: 20),
-              _jobsList(context),
+              _jobsList(context, userSettings),
             ],
           ),
         ),
@@ -145,18 +144,26 @@ class _JobsPageState extends State<JobsPage> {
           color: isSelected ? Colors.red[100] : Colors.white,
         ),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: Text(title, style: TextStyle(color: Colors.red[800], fontWeight: FontWeight.bold)),
+        child: Text(
+          title,
+          style: TextStyle(color: Colors.red[800], fontWeight: FontWeight.bold),
+        ),
       ),
     );
   }
 
-  Widget _buildSalaryRangeSlider() {
+  Widget _buildSalaryRangeSlider(UserSettings userSettings) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Salary Range: LYD. ${minSalary.toInt()} - LYD. ${maxSalary.toInt()}',
-          style: const TextStyle(fontSize: 16),
+          userSettings.currentLanguage == 'en'
+              ? 'Salary Range: LYD. ${minSalary.toInt()} - LYD. ${maxSalary.toInt()}'
+              : 'نطاق الراتب: LYD. ${minSalary.toInt()} - LYD. ${maxSalary.toInt()}',
+          style: TextStyle(
+            fontSize: 16,
+            color: userSettings.isDarkMode ? Colors.white : Colors.black, // لون النص حسب الوضع
+          ),
         ),
         RangeSlider(
           values: RangeValues(minSalary, maxSalary),
@@ -177,7 +184,7 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 
-  Widget _jobsList(BuildContext context) {
+  Widget _jobsList(BuildContext context, UserSettings userSettings) {
     final filteredJobs = jobs.where((job) {
       final isCategoryMatch = selectedCategory == null || selectedCategory == 'All' || job['category'] == selectedCategory;
       final isSalaryMatch = job['salary'] >= minSalary && job['salary'] <= maxSalary;
@@ -185,10 +192,10 @@ class _JobsPageState extends State<JobsPage> {
     }).toList();
 
     if (filteredJobs.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
-          'لا يوجد وظائف',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
+          userSettings.currentLanguage == 'en' ? 'No Jobs Available' : 'لا يوجد وظائف',
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.red),
         ),
       );
     }
@@ -197,23 +204,23 @@ class _JobsPageState extends State<JobsPage> {
       children: filteredJobs.asMap().entries.map<Widget>((entry) {
         int index = entry.key;
         Map<String, dynamic> job = entry.value;
-        return _jobCard(context, job, index);
+        return _jobCard(context, job, index, userSettings);
       }).toList(),
     );
   }
 
-  Widget _jobCard(BuildContext context, Map<String, dynamic> job, int index) {
+  Widget _jobCard(BuildContext context, Map<String, dynamic> job, int index, UserSettings userSettings) {
     final publishedDate = job['publishedDate'].toDate();
     final now = DateTime.now();
     final duration = now.difference(publishedDate);
     String publishedText;
 
     if (duration.inDays >= 1) {
-      publishedText = '${duration.inDays} days ago';
+      publishedText = '${duration.inDays} ${userSettings.currentLanguage == 'en' ? 'days ago' : 'أيام مضت'}';
     } else if (duration.inHours >= 1) {
-      publishedText = '${duration.inHours} hours ago';
+      publishedText = '${duration.inHours} ${userSettings.currentLanguage == 'en' ? 'hours ago' : 'ساعات مضت'}';
     } else {
-      publishedText = '${duration.inMinutes} minutes ago';
+      publishedText = '${duration.inMinutes} ${userSettings.currentLanguage == 'en' ? 'minutes ago' : 'دقائق مضت'}';
     }
 
     return GestureDetector(
@@ -235,7 +242,7 @@ class _JobsPageState extends State<JobsPage> {
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
         elevation: 4,
-        color: Provider.of<UserSettings>(context).isDarkMode ? Colors.grey[800] : Colors.white,
+        color: userSettings.isDarkMode ? Colors.grey[850] : Colors.white,
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -257,24 +264,35 @@ class _JobsPageState extends State<JobsPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(job['title'], style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text(
+                          job['title'],
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white), // لون النص في الداكن
+                        ),
                         const SizedBox(height: 8),
-                        Text(job['description'], maxLines: 2, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 8),
-                        Text('LYD. ${job['salary'].toStringAsFixed(0)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(
+                          publishedText,
+                          style: TextStyle(color: userSettings.isDarkMode ? Colors.grey[300] : Colors.grey[600]), // لون النص في الداكن
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(job['category'], style: TextStyle(color: Colors.grey[600])),
-                  ),
-                  Text(publishedText, style: TextStyle(color: Colors.grey[600])),
-                ],
+              const SizedBox(height: 16),
+              Text(
+                job['description'],
+                style: TextStyle(
+                  color: userSettings.isDarkMode ? Colors.grey[300] : Colors.grey[700], // لون النص في الداكن
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Salary: LYD. ${job['salary'].toStringAsFixed(0)}',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: userSettings.isDarkMode ? Colors.white : Colors.black, // لون النص حسب الوضع
+                ),
               ),
             ],
           ),

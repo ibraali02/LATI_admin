@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RatePage extends StatefulWidget {
   const RatePage({super.key});
@@ -8,32 +10,86 @@ class RatePage extends StatefulWidget {
 }
 
 class _RatePageState extends State<RatePage> {
-  final List<Map<String, dynamic>> _ratings = [
-    {'title': 'Week 1: Kotlin', 'rating': 0},
-    {'title': 'Week 2: Kotlin', 'rating': 0},
-    {'title': 'Week 3: Kotlin', 'rating': 0},
-    {'title': 'Week 4: UI/UX', 'rating': 0},
-    {'title': 'Week 5: Backend', 'rating': 0},
-    {'title': 'Week 6: Flutter', 'rating': 0},
-    {'title': 'Week 7: Flutter', 'rating': 0},
-    {'title': 'Week 8: Flutter', 'rating': 0},
-  ];
+  List<Map<String, dynamic>> _ratings = [];
+  bool _isLoading = true;
+  String _userToken = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserToken();
+  }
+
+  Future<void> _loadUserToken() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    _userToken = prefs.getString('token') ?? '';
+    await _fetchRatings();
+  }
+
+  Future<void> _fetchRatings() async {
+    if (_userToken.isNotEmpty) {
+      try {
+        // ابحث عن الطالب في مجموعة accepted_students للكورس
+        QuerySnapshot acceptedStudentsSnapshot = await FirebaseFirestore.instance
+            .collection('courses') // تأكد من أن هذه المجموعة صحيحة
+            .doc('courseId') // استبدل 'courseId' بمعرف الكورس
+            .collection('accepted_students')
+            .where('userToken', isEqualTo: _userToken)
+            .get();
+
+        if (acceptedStudentsSnapshot.docs.isNotEmpty) {
+          // إذا تم العثور على الطالب، اجلب التقييمات من مجموعة ratings الخاصة بالكورس
+          QuerySnapshot ratingsSnapshot = await FirebaseFirestore.instance
+              .collection('courses')
+              .doc('courseId') // استخدم نفس معرف الكورس
+              .collection('ratings') // تأكد من وجود مجموعة ratings
+              .get();
+
+          if (ratingsSnapshot.docs.isNotEmpty) {
+            setState(() {
+              _ratings = ratingsSnapshot.docs.map((ratingDoc) {
+                return {
+                  'title': ratingDoc['title'], // تأكد من وجود حقل title
+                  'rating': ratingDoc['rating'] ?? 0, // تأكد من وجود حقل rating
+                };
+              }).toList();
+            });
+          } else {
+            setState(() {
+              _ratings = []; // لا توجد تقييمات
+            });
+          }
+        } else {
+          setState(() {
+            _ratings = []; // الطالب غير موجود، لا توجد تقييمات
+          });
+        }
+      } catch (e) {
+        print("Error fetching ratings: $e");
+      }
+    } else {
+      print("User token is empty.");
+    }
+    setState(() {
+      _isLoading = false;
+    });
+  }
 
   void _showRatingDialog(String title, int index) {
-    double rating = _ratings[index]['rating'].toDouble(); // الحصول على التقييم الحالي
+    double rating = _ratings[index]['rating'].toDouble();
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15.0), // زوايا دائرية
+            borderRadius: BorderRadius.circular(15.0),
           ),
           child: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF980E0E), // اللون الأحمر الداكن
-                  const Color(0xFFFF5A5A), // اللون الأحمر الفاتح
+                  const Color(0xFF980E0E),
+                  const Color(0xFFFF5A5A),
                 ],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
@@ -50,7 +106,7 @@ class _RatePageState extends State<RatePage> {
                       style: const TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white, // لون النص
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -60,11 +116,11 @@ class _RatePageState extends State<RatePage> {
                       max: 5,
                       divisions: 5,
                       label: rating.round().toString(),
-                      activeColor: Colors.yellow, // لون شريط التقييم النشط
+                      activeColor: Colors.yellow,
                       inactiveColor: Colors.grey,
                       onChanged: (double value) {
                         setState(() {
-                          rating = value; // تحديث القيمة
+                          rating = value;
                         });
                       },
                     ),
@@ -85,16 +141,19 @@ class _RatePageState extends State<RatePage> {
                         ElevatedButton(
                           onPressed: () {
                             setState(() {
-                              _ratings[index]['rating'] = rating.round(); // حفظ التقييم
+                              _ratings[index]['rating'] = rating.round();
+                              // تحديث التقييم في Firestore
+                              _updateRatingInFirestore(title, rating.round());
                             });
                             Navigator.of(context).pop();
                           },
                           style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.black, backgroundColor: Colors.yellow, // لون النص
+                            foregroundColor: Colors.black,
+                            backgroundColor: Colors.yellow,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20.0), // زوايا دائرية للزر
+                              borderRadius: BorderRadius.circular(20.0),
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0), // حجم الزر
+                            padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 20.0),
                           ),
                           child: const Text('Submit'),
                         ),
@@ -110,6 +169,19 @@ class _RatePageState extends State<RatePage> {
     );
   }
 
+  Future<void> _updateRatingInFirestore(String title, int rating) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('courses')
+          .doc('courseId') // استخدم ID المستند المناسب
+          .collection('ratings')
+          .doc(title) // استخدم عنوان الكورس كمعرف المستند
+          .update({'rating': rating});
+    } catch (e) {
+      print("Error updating rating: $e");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -117,8 +189,8 @@ class _RatePageState extends State<RatePage> {
         title: ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [
-              Color(0xFF980E0E), // اللون الأحمر الداكن
-              Color(0xFFFF5A5A), // اللون الأحمر الفاتح
+              Color(0xFF980E0E),
+              Color(0xFFFF5A5A),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -131,10 +203,14 @@ class _RatePageState extends State<RatePage> {
             ),
           ),
         ),
-        backgroundColor: Colors.transparent, // يجعل شريط العنوان شفافًا
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
-      body: ListView(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _ratings.isEmpty
+          ? const Center(child: Text('لا توجداسابييع لتقييمها'))
+          : ListView(
         padding: const EdgeInsets.all(16.0),
         children: _ratings.asMap().entries.map((entry) {
           int index = entry.key;
@@ -149,11 +225,11 @@ class _RatePageState extends State<RatePage> {
   Widget _buildRatingCard(String title, int rating, int index) {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 8.0),
-      elevation: 8, // زيادة الظل
+      elevation: 8,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20.0), // زوايا دائرية
+        borderRadius: BorderRadius.circular(20.0),
       ),
-      color: Colors.white, // لون خلفية الكارد
+      color: Colors.white,
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -164,7 +240,7 @@ class _RatePageState extends State<RatePage> {
               style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.red, // لون العنوان
+                color: Colors.red,
               ),
             ),
             const SizedBox(height: 8),
@@ -177,18 +253,19 @@ class _RatePageState extends State<RatePage> {
               }),
             ),
             const SizedBox(height: 16),
-            Center( // إضافة Center هنا لجعل الزر في المنتصف
+            Center(
               child: ElevatedButton(
                 onPressed: () {
-                  _showRatingDialog(title, index); // فتح دايلوج التقييم عند الضغط على الزر
+                  _showRatingDialog(title, index);
                 },
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white, backgroundColor: const Color(0xFF980E0E), // لون النص
+                  foregroundColor: Colors.white,
+                  backgroundColor: const Color(0xFF980E0E),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.0), // زوايا دائرية للزر
+                    borderRadius: BorderRadius.circular(20.0),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 20.0), // زيادة حجم الزر
-                  elevation: 5, // ظل للزر
+                  padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 20.0),
+                  elevation: 5,
                 ),
                 child: const Text('Rate Now'),
               ),

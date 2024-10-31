@@ -80,12 +80,7 @@ class _VideoPageState extends State<VideoPage> {
           ),
           centerTitle: true,
           iconTheme: const IconThemeData(color: Colors.black),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () => _showAddVideoDialog(context),
-            ),
-          ],
+
         ),
         body: const Center(
           child: Text(
@@ -109,7 +104,7 @@ class _VideoPageState extends State<VideoPage> {
             end: Alignment.bottomRight,
           ).createShader(bounds),
           child: const Text(
-            'Mobile App Development Lectures',
+            'Lectures',
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,

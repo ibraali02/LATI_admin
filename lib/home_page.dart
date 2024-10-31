@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'NotificationsPage.dart';
 import 'settings_page.dart'; // استيراد صفحة الإعدادات
 import 'package:provider/provider.dart';
-import 'user_settings.dart'; // استيراد UserSettings
+import 'user_settings.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -49,11 +50,13 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final userSettings = Provider.of<UserSettings>(context);
+    bool isDarkMode = userSettings.isDarkMode;
+    String currentLanguage = userSettings.currentLanguage;
 
     return Scaffold(
       body: Stack(
         children: [
-          _customAppBar(context, userSettings.isDarkMode),
+          _customAppBar(context, isDarkMode, currentLanguage),
           DraggableScrollableSheet(
             initialChildSize: 0.75,
             minChildSize: 0.5,
@@ -61,7 +64,7 @@ class _HomePageState extends State<HomePage> {
             builder: (context, scrollController) {
               return Container(
                 decoration: BoxDecoration(
-                  color: userSettings.isDarkMode ? Colors.grey[850] : Colors.white,
+                  color: isDarkMode ? Colors.grey[850] : Colors.white,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                 ),
                 child: Padding(
@@ -70,7 +73,7 @@ class _HomePageState extends State<HomePage> {
                     controller: scrollController,
                     itemCount: _posts.length,
                     itemBuilder: (context, index) {
-                      return _postCard(_posts[index], userSettings.isDarkMode);
+                      return _postCard(_posts[index], isDarkMode, currentLanguage);
                     },
                   ),
                 ),
@@ -82,7 +85,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _customAppBar(BuildContext context, bool isDarkMode) {
+  Widget _customAppBar(BuildContext context, bool isDarkMode, String currentLanguage) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
       height: MediaQuery.of(context).size.height * 0.38,
@@ -105,17 +108,23 @@ class _HomePageState extends State<HomePage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Welcome, $_userName 👋',
-                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black, fontSize: 24, fontWeight: FontWeight.bold),
+                  currentLanguage == 'en'
+                      ? 'Welcome, $_userName 👋'
+                      : 'أهلا بك، $_userName 👋',
+                  style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.notifications, color: Colors.white),
                       onPressed: () {
-                        // Navigate to notifications page
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const NotificationsPage()), // Navigate to NotificationsPage
+                        );
                       },
                     ),
+
                     IconButton(
                       icon: const Icon(Icons.settings, color: Colors.white),
                       onPressed: () {
@@ -130,8 +139,8 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Latest Posts',
+            Text(
+              currentLanguage == 'en' ? 'Latest Posts' : 'آخر المشاركات',
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
           ],
@@ -140,39 +149,56 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _postCard(DocumentSnapshot post, bool isDarkMode) {
+  Widget _postCard(DocumentSnapshot post, bool isDarkMode, String currentLanguage) {
     Map<String, dynamic> data = post.data() as Map<String, dynamic>;
     bool isLiked = false; // Track if the post is liked
 
     return StatefulBuilder(
       builder: (context, setState) {
-        return Card(
-          elevation: 4,
+        return Container(
           margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-          color: isDarkMode ? Colors.grey[800] : Colors.white,
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[800] : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black26,
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Published by: الأكاديمية الليبية للاتصالات والمعلوماتية',
+                  currentLanguage == 'en'
+                      ? 'Published by: الأكاديمية الليبية للاتصالات والمعلوماتية'
+                      : 'تم النشر بواسطة: الأكاديمية الليبية للاتصالات والمعلوماتية',
                   style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  data['title'] ?? 'No Title',
+                  data['title'] ?? (currentLanguage == 'en' ? 'No Title' : 'لا يوجد عنوان'),
                   style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
-                Image.network(
-                  data['image'] ?? '',
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: Image.network(
+                    data['image'] ?? '',
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
                 ),
                 const SizedBox(height: 10),
-                Text(data['content'] ?? 'No Content', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+                Text(
+                  data['content'] ?? (currentLanguage == 'en' ? 'No Content' : 'لا توجد محتويات'),
+                  style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                ),
                 const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -199,7 +225,7 @@ class _HomePageState extends State<HomePage> {
                         Text('${data['shares'] ?? 0}', style: const TextStyle(color: Colors.grey)),
                         const SizedBox(width: 16),
                         Text(
-                          _formatPostDate(data['date']),
+                          _formatPostDate(data['date']), // استدعاء دالة تنسيق التاريخ
                           style: const TextStyle(color: Colors.grey),
                         ),
                       ],
@@ -214,26 +240,13 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  String _formatPostDate(String? dateString) {
-    if (dateString == null) {
-      return 'Unknown';
+  String _formatPostDate(dynamic date) {
+    if (date is Timestamp) {
+      DateTime dateTime = date.toDate();
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } else if (date is String) {
+      return date; // أو يمكنك إضافة منطق لتحويل السلسلة إلى تاريخ إذا كان ذلك ممكنًا
     }
-
-    try {
-      DateTime postDate = DateTime.parse(dateString);
-      Duration diff = DateTime.now().difference(postDate);
-
-      if (diff.inDays >= 1) {
-        return '${diff.inDays} days ago';
-      } else if (diff.inHours >= 1) {
-        return '${diff.inHours} hours ago';
-      } else if (diff.inMinutes >= 1) {
-        return '${diff.inMinutes} minutes ago';
-      } else {
-        return 'Just now';
-      }
-    } catch (e) {
-      return 'Unknown';
-    }
+    return 'Unknown date';
   }
 }

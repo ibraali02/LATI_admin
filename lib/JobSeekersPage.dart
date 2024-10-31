@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'AddJobSeekerPage.dart';
 
 class JobSeekersPage extends StatefulWidget {
-  const JobSeekersPage({super.key});
+  const JobSeekersPage({Key? key}) : super(key: key);
 
   @override
   _JobSeekersPageState createState() => _JobSeekersPageState();
@@ -14,6 +14,7 @@ class _JobSeekersPageState extends State<JobSeekersPage> {
   List<String> selectedCourses = [];
   bool isGraduate = false;
   String selectedCity = 'All Cities';
+  bool isLoading = true; // حالة التحميل
 
   @override
   void initState() {
@@ -33,7 +34,7 @@ class _JobSeekersPageState extends State<JobSeekersPage> {
           'cv': data['cv'] ?? 'N/A',
           'image': data['image'],
           'courses': List<String>.from(data['courses'] ?? []),
-          'category': data['graduate'] ? 'Graduate' : 'Student',
+          'graduate': data['graduate'] ? 'Graduate' : 'Student',
           'city': data['city'] ?? 'Unknown',
           'age': data['age'],
           'university': data['university'],
@@ -42,9 +43,13 @@ class _JobSeekersPageState extends State<JobSeekersPage> {
 
       setState(() {
         jobSeekers = fetchedJobSeekers;
+        isLoading = false; // تعيين حالة التحميل إلى false بعد الانتهاء
       });
     } catch (e) {
       print('Error fetching job seekers: $e');
+      setState(() {
+        isLoading = false; // تعيين حالة التحميل إلى false حتى في حالة الخطأ
+      });
     }
   }
 
@@ -52,10 +57,7 @@ class _JobSeekersPageState extends State<JobSeekersPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Job Seekers',
-          style: TextStyle(color: Colors.white),
-        ),
+        title: const Text('Job Seekers', style: TextStyle(color: Colors.white)),
         flexibleSpace: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
@@ -66,7 +68,9 @@ class _JobSeekersPageState extends State<JobSeekersPage> {
           ),
         ),
       ),
-      body: Column(
+      body: isLoading
+          ? Center(child: CircularProgressIndicator()) // عرض مؤشر التحميل
+          : Column(
         children: [
           _buildCityFilters(),
           _buildFilters(),
@@ -188,7 +192,7 @@ class _JobSeekersPageState extends State<JobSeekersPage> {
     final filteredJobSeekers = jobSeekers.where((seeker) {
       if (selectedCity != 'All Cities' && seeker['city'] != selectedCity) return false;
       bool matchesCourses = selectedCourses.isEmpty || seeker['courses'].any((course) => selectedCourses.contains(course));
-      bool matchesGraduate = isGraduate ? seeker['category'] == 'Graduate' : true;
+      bool matchesGraduate = isGraduate ? seeker['graduate'] == 'Graduate' : true;
       return matchesCourses && matchesGraduate;
     }).toList();
 

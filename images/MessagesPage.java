@@ -13,31 +13,28 @@ class _MessagesPageState extends State<MessagesPage> {
   final TextEditingController _messageController = TextEditingController();
   late CollectionReference _coursesRef;
   String? _userId;
-  String? _userName;
+  String? _userName; // لتخزين اسم المستخدم
   String? _courseToken;
   bool isLoading = true;
-  bool isEnrolledInCourse = false; // افتراضيًا، غير مسجل في أي كورس
 
   @override
   void initState() {
     super.initState();
-    _coursesRef = FirebaseFirestore.instance.collection('courses');
-    _fetchUserData();
+    _coursesRef = FirebaseFirestore.instance.collection('courses'); // تحديد مجموعة الدورات
+    _fetchUserData(); // جلب بيانات المستخدم عند بدء التطبيق
   }
 
   Future<void> _fetchUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    _userId = prefs.getString('token');
+    _userId = prefs.getString('token'); // جلب معرف المستخدم من SharedPreferences
 
     if (_userId != null) {
       await _fetchUserDetails(_userId!);
       await _fetchUserTokenAndCourseData();
     } else {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      setState(() {
+        isLoading = false; // إيقاف التحميل إذا كان معرف المستخدم فارغًا
+      });
     }
   }
 
@@ -49,11 +46,9 @@ class _MessagesPageState extends State<MessagesPage> {
           .get();
 
       if (userDoc.exists) {
-        if (mounted) {
-          setState(() {
-            _userName = (userDoc.data() as Map<String, dynamic>)['first_name'];
-          });
-        }
+        setState(() {
+          _userName = (userDoc.data() as Map<String, dynamic>)['first_name']; // احصل على اسم المستخدم
+        });
       }
     } catch (e) {
       print("Error fetching user details: $e");
@@ -67,25 +62,22 @@ class _MessagesPageState extends State<MessagesPage> {
     if (userToken != null) {
       await _fetchCourseForUser(userToken);
     } else {
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      setState(() {
+        isLoading = false; // إيقاف التحميل إذا كان التوكن فارغًا
+      });
     }
   }
 
   Future<void> _fetchCourseForUser(String userToken) async {
     try {
       QuerySnapshot coursesSnapshot = await _coursesRef
-          .where('isStarted', isEqualTo: true)
+          .where('isStarted', isEqualTo: true) // جلب الكورسات المبدوءة
           .get();
-
-      bool courseFound = false;
 
       for (var courseDoc in coursesSnapshot.docs) {
         var courseData = courseDoc.data() as Map<String, dynamic>;
 
+        // تحقق من وجود الطلاب المقبولين
         QuerySnapshot acceptedStudentsSnapshot = await FirebaseFirestore.instance
             .collection('courses')
             .doc(courseDoc.id)
@@ -94,33 +86,18 @@ class _MessagesPageState extends State<MessagesPage> {
             .get();
 
         if (acceptedStudentsSnapshot.docs.isNotEmpty) {
-          if (mounted) {
-            setState(() {
-              _courseToken = courseDoc.id;
-              isLoading = false;
-              isEnrolledInCourse = true; // تم العثور على الكورس
-            });
-          }
-          courseFound = true;
-          break;
-        }
-      }
-
-      if (!courseFound) {
-        if (mounted) {
           setState(() {
-            isLoading = false;
-            isEnrolledInCourse = false; // لم يتم العثور على الكورس
+            _courseToken = courseDoc.id; // احصل على توكن الكورس
+            isLoading = false; // إنهاء حالة التحميل
           });
+          break; // الخروج بعد العثور على الكورس
         }
       }
     } catch (e) {
       print("Error fetching courses for user: $e");
-      if (mounted) {
-        setState(() {
-          isLoading = false;
-        });
-      }
+      setState(() {
+        isLoading = false; // إنهاء حالة التحميل في حالة حدوث خطأ
+      });
     }
   }
 
@@ -128,11 +105,11 @@ class _MessagesPageState extends State<MessagesPage> {
     if (_courseToken != null && messageContent.isNotEmpty) {
       try {
         await _coursesRef
-            .doc(_courseToken)
-            .collection('messages')
+            .doc(_courseToken) // استخدم معرف الوثيقة الذي تم جلبه
+            .collection('messages') // مجموعة فرعية للرسائل
             .add({
-          'sender': _userId,
-          'senderName': _userName,
+          'sender': _userId, // استخدم معرف المستخدم
+          'senderName': _userName, // إضافة اسم المستخدم
           'time': FieldValue.serverTimestamp(),
           'content': messageContent,
           'courseId': _courseToken,
@@ -140,10 +117,10 @@ class _MessagesPageState extends State<MessagesPage> {
 
         _messageController.clear();
       } catch (e) {
-        print("Error sending message: $e");
+        print("Error sending message: $e"); // طباعة الخطأ
       }
     } else {
-      print("Course token is null or message is empty.");
+      print("Course token is null or message is empty."); // إذا كان المعرف أو الرسالة فارغة
     }
   }
 
@@ -156,56 +133,54 @@ class _MessagesPageState extends State<MessagesPage> {
       ),
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
-          : isEnrolledInCourse
-          ? Column(
-        children: [
-          const Divider(thickness: 2, color: Colors.grey),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _courseToken != null
-                  ? _coursesRef
-                  .doc(_courseToken)
-                  .collection('messages')
-                  .orderBy('time')
-                  .snapshots()
-                  : Stream.empty(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+          : Column(
+              children: [
+                const Divider(thickness: 2, color: Colors.grey),
+                Expanded(
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream: _courseToken != null
+                        ? _coursesRef
+                            .doc(_courseToken) // استخدم معرف الوثيقة
+                            .collection('messages')
+                            .orderBy('time') // ترتيب الرسائل حسب الوقت
+                            .snapshots()
+                        : Stream.empty(), // تدفق فارغ حتى يتم جلب معرف الوثيقة
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
+                      if (snapshot.hasError) {
+                        return Center(child: Text('Error: ${snapshot.error}'));
+                      }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No messages yet'));
-                }
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(child: Text('No messages yet'));
+                      }
 
-                final messages = snapshot.data!.docs.map((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  return Message(
-                    sender: data['senderName'] ?? data['sender'],
-                    time: (data['time'] as Timestamp?)?.toDate().toLocal().toString().substring(10, 15) ?? '',
-                    content: data['content'] ?? '',
-                  );
-                }).toList();
+                      final messages = snapshot.data!.docs.map((doc) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        return Message(
+                          sender: data['senderName'] ?? data['sender'], // استخدام اسم المرسل
+                          time: (data['time'] as Timestamp?)?.toDate().toLocal().toString().substring(10, 15) ?? '',
+                          content: data['content'] ?? '',
+                        );
+                      }).toList();
 
-                return ListView.builder(
-                  reverse: true,
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final message = messages[messages.length - 1 - index];
-                    return _buildMessageBubble(message);
-                  },
-                );
-              },
+                      return ListView.builder(
+                        reverse: true, // عكس ترتيب قائمة الرسائل لعرض الأحدث في الأسفل
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[messages.length - 1 - index]; // تغيير الفهرس لعرض الأقدم أولاً
+                          return _buildMessageBubble(message);
+                        },
+                      );
+                    },
+                  ),
+                ),
+                _buildMessageInputField(),
+              ],
             ),
-          ),
-          _buildMessageInputField(),
-        ],
-      )
-          : const Center(child: Text('لست مسجلاً في كورس مبدوء.')),
     );
   }
 
@@ -226,7 +201,7 @@ class _MessagesPageState extends State<MessagesPage> {
           children: [
             Text(
               message.sender,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold), // عرض اسم المرسل
             ),
             const SizedBox(height: 5),
             Text(
@@ -268,7 +243,7 @@ class _MessagesPageState extends State<MessagesPage> {
               if (_messageController.text.trim().isNotEmpty) {
                 _sendMessage(_messageController.text);
               } else {
-                print("Message is empty!");
+                print("Message is empty!"); // إضافة هذه السطر
               }
             },
           ),

@@ -5,7 +5,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'course_detail_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:provider/provider.dart';
-import 'user_settings.dart'; // تأكد من استيراد UserSettings
 
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -19,11 +18,13 @@ class _ExplorePageState extends State<ExplorePage> {
   String? selectedSortOption;
   String? userToken;
   List<String> enrolledCourses = [];
+  String? selectedFilter;
 
   @override
   void initState() {
     super.initState();
     _loadUserToken();
+    selectedFilter = 'All'; // الفلتر الافتراضي
   }
 
   Future<void> _loadUserToken() async {
@@ -51,87 +52,80 @@ class _ExplorePageState extends State<ExplorePage> {
     }
   }
 
+  Future<void> _refreshCourses() async {
+    await _fetchEnrolledCourses();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final userSettings = Provider.of<UserSettings>(context);
-    final isDarkMode = userSettings.isDarkMode;
+
+    final isDarkMode = false;
 
     return Scaffold(
       backgroundColor: isDarkMode ? Colors.black : Colors.white,
-      appBar: AppBar(
-        title: Text('Explore Courses'),
-        actions: [
-          IconButton(
-            icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
-            onPressed: () {
-              userSettings.toggleDarkMode(!isDarkMode);
-            },
+      body: RefreshIndicator(
+        onRefresh: _refreshCourses,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              expandedHeight: 50,
+              flexibleSpace: FlexibleSpaceBar(
+                background: buildAppBarBackground(),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 16),
+                  _filterButtonsWithImages(isDarkMode),
+                  const SizedBox(height: 16),
+                  _filterButtons(isDarkMode),
+                  const SizedBox(height: 16),
+                  _sortDropdown(isDarkMode),
+                  const SizedBox(height: 16),
+                  _coursesList(isDarkMode),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildAppBarBackground() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [
+            Color(0xFF980E0E),
+            Color(0xFF330000),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 5),
           ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            pinned: true,
-            expandedHeight: 50,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: isDarkMode
-                      ? const LinearGradient(
-                    colors: [
-                      Color(0xFF980E0E),
-                      Color(0xFF330000),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
-                      : const LinearGradient(
-                    colors: [
-                      Color(0xFFFFC107),
-                      Color(0xFFFF9800),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: const BorderRadius.vertical(
-                    bottom: Radius.circular(30),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 10,
-                      offset: const Offset(0, 5),
-                    ),
-                  ],
-                ),
-                child: Center(
-                  child: Text(
-                    'Explore Courses',
-                    style: GoogleFonts.lato(
-                      color: isDarkMode ? Colors.white : Colors.black,
-                      fontSize: 26,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+      child: Center(
+        child: Text(
+          'Explore Courses',
+          style: GoogleFonts.lato(
+            color: Colors.white,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
           ),
-          SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                _filterButtonsWithImages(isDarkMode),
-                const SizedBox(height: 16),
-                _sortDropdown(isDarkMode),
-                const SizedBox(height: 16),
-                _coursesList(isDarkMode),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -155,13 +149,31 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
+  Widget _filterButtons(bool isDarkMode) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        _filterButton('All', Icons.list, isDarkMode),
+        const SizedBox(width: 8),
+        _filterButton('Finished', Icons.check, isDarkMode),
+        const SizedBox(width: 8),
+        _filterButton('Not Started', Icons.hourglass_empty, isDarkMode),
+      ],
+    );
+  }
+
   Widget _filterButton(String title, dynamic icon, bool isDarkMode) {
-    bool isSelected = selectedCategory == title;
+    bool isSelected = (selectedCategory == title) || (selectedFilter == title);
 
     return GestureDetector(
       onTap: () {
         setState(() {
-          selectedCategory = (isSelected && title == 'All') ? null : title;
+          if (title == 'All') {
+            selectedCategory = null;
+            selectedFilter = 'All';
+          } else {
+            selectedFilter = title;
+          }
         });
       },
       child: Container(
@@ -171,26 +183,26 @@ class _ExplorePageState extends State<ExplorePage> {
           color: isSelected ? Colors.red[100] : (isDarkMode ? Colors.grey[800] : Colors.white),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        margin: const EdgeInsets.only(right: 8),
         child: Row(
           children: [
             Text(
               title,
               style: GoogleFonts.lato(color: isDarkMode ? Colors.white : Colors.black, fontSize: 14),
             ),
-            const SizedBox(width: 4),
-            icon is IconData
-                ? Icon(icon, size: 24, color: isDarkMode ? Colors.white : Colors.black)
-                : SizedBox(
-              width: 24,
-              height: 24,
-              child: ClipOval(
+            if (icon is IconData) ...[
+              const SizedBox(width: 4),
+              Icon(icon, size: 24, color: isDarkMode ? Colors.white : Colors.black),
+            ] else if (icon is String) ...[
+              const SizedBox(width: 4),
+              ClipOval(
                 child: Image.asset(
                   icon,
                   fit: BoxFit.cover,
+                  width: 24,
+                  height: 24,
                 ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -249,12 +261,19 @@ class _ExplorePageState extends State<ExplorePage> {
         }
 
         final filteredCourses = snapshot.data!.docs.where((doc) {
-          if (selectedCategory == null || selectedCategory == 'All') {
-            return true;
+          final course = doc.data() as Map<String, dynamic>;
+          bool isFinished = course['isFinished'] ?? false;
+          bool isStarted = course['isStarted'] ?? false;
+
+          if (selectedFilter == 'Finished') {
+            return isFinished;
+          } else if (selectedFilter == 'Not Started') {
+            return !isStarted && !isFinished;
           }
-          return doc['category'] == selectedCategory;
+          return true; // All
         }).toList();
 
+        // Sorting logic
         if (selectedSortOption == 'Duration: Shortest First') {
           filteredCourses.sort((a, b) => a['duration'].compareTo(b['duration']));
         } else if (selectedSortOption == 'Duration: Longest First') {
@@ -279,9 +298,13 @@ class _ExplorePageState extends State<ExplorePage> {
             final category = course['category'] ?? 'Unknown Category';
             final publishedDate = (course['publishedDate'] as Timestamp).toDate();
             final timeAgo = timeago.format(publishedDate);
+            final price = course['price'] ?? ''; // سعر الكورس العادي
+            final priceFinish = course['priceFinish'] ?? ''; // سعر الكورس عند الانتهاء
 
             // Check if the user is enrolled in this course
             bool isEnrolled = enrolledCourses.contains(doc.id);
+            bool isFinished = course['isFinished'] ?? false;
+            bool isStarted = course['isStarted'] ?? false;
 
             return GestureDetector(
               onTap: () {
@@ -296,6 +319,7 @@ class _ExplorePageState extends State<ExplorePage> {
                       location: location,
                       category: category,
                       publishedDate: timeAgo,
+                      price: isFinished ? priceFinish : price, // عرض السعر من الحقل المناسب
                     ),
                   ),
                 );
@@ -310,6 +334,9 @@ class _ExplorePageState extends State<ExplorePage> {
                 timeAgo,
                 isEnrolled,
                 isDarkMode,
+                isFinished ? priceFinish : price, // عرض السعر من الحقل المناسب
+                isFinished, // تمرير حالة انتهاء الكورس
+                isStarted,  // تمرير حالة بدء الكورس
               ),
             );
           },
@@ -318,7 +345,7 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 
-  Widget _courseCard(String title, String description, String duration, String imageUrl, String location, String category, String publishedDate, bool isEnrolled, bool isDarkMode) {
+  Widget _courseCard(String title, String description, String duration, String imageUrl, String location, String category, String publishedDate, bool isEnrolled, bool isDarkMode, String price, bool isFinished, bool isStarted) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
@@ -425,12 +452,35 @@ class _ExplorePageState extends State<ExplorePage> {
                     ),
                   ],
                 ),
-                // Add a registration status button
                 const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Icon(Icons.attach_money, size: 16, color: Colors.green),
+                    const SizedBox(width: 4),
+                    Text(
+                     price.isEmpty || price == '0' ? 'Free' : '\$${price}',
+                      style: GoogleFonts.lato(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isDarkMode ? Colors.white : Colors.black,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (!isStarted && !isFinished)
+                  const Text(
+                    'Course not started yet.',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                if (isFinished)
+                  const Text(
+                    'This course has finished.',
+                    style: TextStyle(color: Colors.red),
+                  ),
                 if (isEnrolled)
                   ElevatedButton(
                     onPressed: () {
-                      // Action when the user is already enrolled
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('You are already enrolled in this course.')),
                       );

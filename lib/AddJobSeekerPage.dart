@@ -62,36 +62,9 @@ class _AddJobSeekerPageState extends State<AddJobSeekerPage> {
     }
   }
 
-  Future<void> _fetchUserData() async {
-    try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
-      if (userDoc.exists) {
-        setState(() {
-          name = userDoc['name'] ?? '';
-          email = userDoc['email'] ?? '';
-          phone = userDoc['phone'] ?? '';
-          city = userDoc['city'] ?? '';
-          university = userDoc['university'] ?? '';
-          age = userDoc['age'] ?? 0;
-          isGraduate = userDoc['graduate'] ?? false;
-          gender = userDoc['gender'] ?? 'Male';
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('User data not found')),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching user data: $e')),
-      );
-    }
-  }
-
   Future<void> _addJobSeeker() async {
-    try {
-      if (_formKey.currentState?.validate() ?? false) {
+    if (_formKey.currentState?.validate() ?? false) {
+      try {
         String? profileImageUrl;
         String? cvImageUrl;
 
@@ -118,11 +91,11 @@ class _AddJobSeekerPageState extends State<AddJobSeekerPage> {
         });
 
         Navigator.pop(context);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error adding job seeker: $e')),
+        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error adding job seeker: $e')),
-      );
     }
   }
 
@@ -148,17 +121,6 @@ class _AddJobSeekerPageState extends State<AddJobSeekerPage> {
           child: SingleChildScrollView(
             child: Column(
               children: [
-                ElevatedButton(
-                  onPressed: _fetchUserData,
-                  child: const Text('Fill with User Data'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF980E0E),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                  ),
-                ),
                 const SizedBox(height: 16),
                 if (_imageFile != null)
                   Padding(
@@ -255,6 +217,7 @@ class _AddJobSeekerPageState extends State<AddJobSeekerPage> {
         ),
         keyboardType: keyboardType,
         onChanged: onChanged,
+        validator: (value) => value!.isEmpty ? 'Please enter $label' : null,
       ),
     );
   }
@@ -263,7 +226,7 @@ class _AddJobSeekerPageState extends State<AddJobSeekerPage> {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
       child: DropdownButtonFormField<String>(
-        value: city,
+        value: city.isEmpty ? null : city,
         items: cities.map((String city) {
           return DropdownMenuItem<String>(
             value: city,

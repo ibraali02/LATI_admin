@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
+import '../course_detail_page.dart';
 
 class PostsPage extends StatefulWidget {
   const PostsPage({super.key});
@@ -21,8 +22,9 @@ class _PostsPageState extends State<PostsPage> {
   DateTime? startDate;
   bool isStarted = false;
   bool isLoading = true;
-  List<dynamic> contentList = []; // To hold content data
-  List<dynamic> externalContents = []; // To hold external content data
+  List<dynamic> contentList = [];
+  List<dynamic> externalContents = [];
+  List<dynamic> suggestedCourses = [];
 
   @override
   void initState() {
@@ -38,7 +40,7 @@ class _PostsPageState extends State<PostsPage> {
       await _fetchCourseForUser(userToken);
     } else {
       setState(() {
-        isLoading = false; // Stop loading if token is null
+        isLoading = false;
       });
     }
   }
@@ -62,39 +64,51 @@ class _PostsPageState extends State<PostsPage> {
 
         if (acceptedStudentsSnapshot.docs.isNotEmpty) {
           setState(() {
-            title = courseData['title'] ?? "Course Title";
-            description = courseData['description'] ?? "No Description";
-            duration = courseData['duration'] ?? "Duration Not Available";
-            location = courseData['location'] ?? "Location Not Available";
-            category = courseData['category'] ?? "No Category";
+            title = courseData['title'] ?? "عنوان الدورة غير متوفر";
+            description = courseData['description'] ?? "لا توجد تفاصيل";
+            duration = courseData['duration'] ?? "مدة غير متوفرة";
+            location = courseData['location'] ?? "موقع غير متوفر";
+            category = courseData['category'] ?? "فئة غير متوفرة";
             imageUrl = courseData['imageUrl'] ?? "";
             publishedDate = courseData['publishedDate'] != null
                 ? (courseData['publishedDate'] as Timestamp).toDate()
-                : null;
+                : DateTime.now();
             startDate = courseData['startTime'] != null
                 ? (courseData['startTime'] as Timestamp).toDate()
-                : null;
+                : DateTime.now();
             isStarted = courseData['isStarted'] ?? false;
-            isLoading = false; // Stop loading after finding the course
+            isLoading = false;
           });
 
-          // Fetch content for this course
           await _fetchContentForCourse(courseDoc.id);
-          // Fetch external contents for this course
           await _fetchExternalContents(courseDoc.id);
-          return; // Exit after finding the first matching course
+          return;
         }
       }
 
-      // If no course found, stop loading
-      setState(() {
-        isLoading = false;
-      });
+      await _fetchSuggestedCourses();
     } catch (e) {
       print("Error fetching course for user: $e");
       setState(() {
-        isLoading = false; // Stop loading on error
+        isLoading = false;
       });
+    }
+  }
+
+  Future<void> _fetchSuggestedCourses() async {
+    try {
+      QuerySnapshot suggestedCoursesSnapshot = await FirebaseFirestore.instance
+          .collection('courses')
+          .where('isStarted', isEqualTo: false)
+          .where('isEnded', isEqualTo: false)
+          .get();
+
+      setState(() {
+        suggestedCourses = suggestedCoursesSnapshot.docs.map((doc) => doc.data()).toList();
+        isLoading = false;
+      });
+    } catch (e) {
+      print("Error fetching suggested courses: $e");
     }
   }
 
@@ -128,6 +142,107 @@ class _PostsPageState extends State<PostsPage> {
     } catch (e) {
       print("Error fetching external contents for course: $e");
     }
+  }
+
+  Widget _suggestedCoursesSection(BuildContext context) {
+    if (suggestedCourses.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      elevation: 4,
+      margin: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
+      child: Padding(
+        padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.04),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Suggested Courses",
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...suggestedCourses.map((course) {
+              return Card(
+                elevation: 2,
+                margin: const EdgeInsets.symmetric(vertical: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      course['imageUrl'] != null && course['imageUrl'].isNotEmpty
+                          ? Image.network(course['imageUrl'], height: 120, width: double.infinity, fit: BoxFit.cover)
+                          : const SizedBox(height: 120, width: double.infinity),
+                      const SizedBox(height: 8),
+                      Text(
+                        course['title'] ?? "Course Title",
+                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        course['description'] ?? "No Description",
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Category: ${course['category'] ?? 'N/A'}",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Duration: ${course['duration'] ?? 'N/A'}",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Location: ${course['location'] ?? 'N/A'}",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Price: ${course['price'] ?? 'N/A'}",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Published on: ${course['publishedDate'] != null ? DateFormat.yMMMd().format((course['publishedDate'] as Timestamp).toDate()) : 'N/A'}",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "Is Finished: ${course['isFinished'] ? 'Yes' : 'No'}",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => CourseDetailPage(
+                                courseId: course['id'],
+                                title: course['title'] ?? "عنوان الدورة غير متوفر",
+                                description: course['description'] ?? "لا توجد تفاصيل",
+                                duration: course['duration'] ?? "مدة غير متوفرة",
+                                imageUrl: course['imageUrl'] ?? "",
+                                location: course['location'] ?? "موقع غير متوفر",
+                                category: course['category'] ?? "فئة غير متوفرة",
+                                publishedDate: DateFormat.yMMMd().format((course['publishedDate'] as Timestamp).toDate()),
+                                price: course['price'] ?? "0",
+                              ),
+                            ),
+                          );
+                        },
+                        child: const Text('View Details'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }).toList(),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _continueLearningSection(BuildContext context) {
@@ -243,7 +358,6 @@ class _PostsPageState extends State<PostsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               const SizedBox(height: 8),
               ...contentList.map((content) {
                 return Column(
@@ -256,7 +370,7 @@ class _PostsPageState extends State<PostsPage> {
                     Text("Type: ${content['type'] ?? 'N/A'}"),
                     Text("Start Time: ${content['startTime'] != null ? DateFormat.jm().format((content['startTime'] as Timestamp).toDate()) : 'N/A'}"),
                     Text("End Time: ${content['endTime'] != null ? DateFormat.jm().format((content['endTime'] as Timestamp).toDate()) : 'N/A'}"),
-                    const SizedBox(height: 8), // Spacing between items
+                    const SizedBox(height: 8),
                   ],
                 );
               }).toList(),
@@ -274,22 +388,18 @@ class _PostsPageState extends State<PostsPage> {
     }
 
     return Scaffold(
-
-      body: SingleChildScrollView( // إضافة SingleChildScrollView هنا
+      body: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.all(MediaQuery.of(context).size.width * 0.02),
           child: Column(
             children: [
               _continueLearningSection(context),
               const SizedBox(height: 16),
-              const Text(
-                "External Course Contents",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ), // Title for external contents
-              const SizedBox(height: 8),
-              _externalContentSection(context), // Show the external content section below the title
+              _externalContentSection(context),
               const SizedBox(height: 16),
-              _contentSection(context), // Show the content section below the external content
+              _contentSection(context),
+              const SizedBox(height: 16),
+              _suggestedCoursesSection(context),
             ],
           ),
         ),
